@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OCR Region Editor</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="toolbar">
+  <div class="tabs">
+    <button class="btn tab-btn active" id="editorTab">Region Editor</button>
+    <button class="btn tab-btn" id="processingTab">Image Processing</button>
+    <button class="btn tab-btn" id="reviewTab">Quality Review</button>
+  </div>
+
+  <div class="tab-content" id="editorContent">
+    <div class="file-input">
+      <input type="file" id="fileInput" accept=".pdf,image/*" />
+      <label for="fileInput" class="btn">Load PDF/Image</label>
+    </div>
+
+    <div class="page-controls" id="pageControls" style="display: none;">
+      <button class="btn" id="prevPage">← Prev</button>
+      <span id="pageInfo">Page 1 of 1</span>
+      <button class="btn" id="nextPage">Next →</button>
+    </div>
+
+    <div class="region-controls">
+      <label>Region Type:</label>
+      <select id="regionType">
+        <option value="left-text">Left Text</option>
+        <option value="right-text">Right Text</option>
+        <option value="left-margin">Left Margin</option>
+        <option value="right-margin">Right Margin</option>
+        <option value="header">Header</option>
+        <option value="footer">Footer</option>
+        <option value="custom">Custom...</option>
+      </select>
+
+      <button class="btn" id="addCustomType">+ Add Type</button>
+      <button class="btn" id="autoDetectRegions">🎯 Auto-Detect</button>
+      <button class="btn" id="clearRegions">Clear All</button>
+    </div>
+
+    <div class="skew-controls">
+      <label>Skew:</label>
+      <input type="range" id="skewSlider" min="-10" max="10" value="0" step="0.1">
+      <span id="skewValue">0°</span>
+      <button class="btn" id="resetSkew">Reset</button>
+    </div>
+
+    <div class="grid-controls">
+      <label>
+        <input type="checkbox" id="showGrid"> Show Grid
+      </label>
+    </div>
+
+    <button class="btn" id="exportRegions">Export Regions</button>
+  </div>
+
+  <div class="tab-content" id="processingContent" style="display: none;">
+    <div class="processing-controls">
+      <div class="processing-section">
+        <h4>Process Current Document</h4>
+        <div class="current-doc-info" id="currentDocInfo">
+          No document loaded
+        </div>
+        <div class="processing-options">
+          <label>
+            Output Format:
+            <select id="outputFormat">
+              <option value="zip">ZIP Archive</option>
+              <option value="individual">Individual Downloads</option>
+            </select>
+          </label>
+          <label>
+            Image Quality:
+            <select id="imageQuality">
+              <option value="high">High (PNG)</option>
+              <option value="medium">Medium (JPEG 90%)</option>
+              <option value="low">Low (JPEG 70%)</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn" id="processCurrentDoc" disabled>Generate Image Slices</button>
+      </div>
+
+      <div class="processing-progress" id="processingProgress" style="display: none;">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Processing...</div>
+      </div>
+
+      <div class="processing-results" id="processingResults" style="display: none;">
+        <h4>Processing Complete</h4>
+        <div class="results-summary" id="resultsSummary"></div>
+        <div class="download-links" id="downloadLinks"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="reviewContent" style="display: none;">
+    <div class="review-controls">
+      <div class="review-header">
+        <h4>Quality Review</h4>
+        <div class="review-stats" id="reviewStats">
+          No slices to review
+        </div>
+        <div class="review-actions">
+          <button class="btn" id="exportFlagged">Export Flagged Issues</button>
+          <button class="btn" id="clearReview">Clear Review</button>
+        </div>
+      </div>
+
+      <div class="review-filters">
+        <label>
+          Filter by:
+          <select id="reviewFilter">
+            <option value="all">All Slices</option>
+            <option value="flagged">Flagged Only</option>
+            <option value="approved">Approved Only</option>
+            <option value="unreviewed">Unreviewed</option>
+          </select>
+        </label>
+        <label>
+          Sort by:
+          <select id="reviewSort">
+            <option value="page">Page Order</option>
+            <option value="type">Region Type</option>
+            <option value="status">Review Status</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="review-grid" id="reviewGrid">
+        <div class="no-slices-message">
+          Process a document in the Image Processing tab to review slices here.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+  <div class="canvas-container">
+    <div class="canvas-wrapper">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h3>Regions</h3>
+    <div class="help-text">
+      Click and drag to create regions. Each region will be processed separately by OCR. Use page navigation for multi-page PDFs.
+    </div>
+
+    <div class="region-list" id="regionList">
+      <!-- Regions will be added here dynamically -->
+    </div>
+
+    <div style="margin-top: 30px;">
+      <h4>Templates</h4>
+      <button class="btn" id="saveTemplate" style="width: 100%; margin-bottom: 8px;">Save as Template</button>
+      <button class="btn" id="loadTemplate" style="width: 100%;">Load Template</button>
+      <div class="help-text">
+        Save region layouts as templates for similar pages.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="status" id="status">
+  Load a PDF or image to start drawing regions
+</div>
+
+<!-- Image Zoom Modal -->
+<div id="zoomModal" class="zoom-modal">
+  <span class="close-zoom" id="closeZoom">&times;</span>
+  <div class="zoom-modal-content">
+    <img id="zoomImage" class="zoom-image" src="" alt="Zoomed slice">
+    <div class="zoom-controls">
+      <div class="zoom-info" id="zoomInfo">Slice details</div>
+      <div class="zoom-actions">
+        <button class="btn-approve" onclick="QualityReview.approveCurrentZoomedSlice()">✓ Approve</button>
+        <button class="btn-flag" onclick="QualityReview.flagCurrentZoomedSlice()">⚠ Flag</button>
+        <button class="btn-edit" onclick="QualityReview.editCurrentZoomedSlice()">✏ Edit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Load external libraries first -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- Load our modules in dependency order -->
+<script src="js/utils.js"></script>
+<script src="js/PDFHandler.js"></script>
+<script src="js/ImageProcessor.js"></script>
+<script src="js/QualityReview.js"></script>
+<script src="js/RegionDetector.js"></script>
+<script src="js/CanvasManager.js"></script>
+<script src="js/RegionEditorCore.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
