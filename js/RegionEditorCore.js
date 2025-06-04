@@ -1,5 +1,5 @@
 /**
- * RegionEditorCore - Main editor class (simplified)
+ * RegionEditorCore - Main editor class with enhanced auto-detection
  */
 
 class RegionEditor {
@@ -10,6 +10,10 @@ class RegionEditor {
         this.totalPages = 1;
         this.pageRegions = {}; // Store regions for each page
         this.customTypes = []; // Store user-defined region types
+
+        // Template management
+        this.savedTemplates = this.loadSavedTemplates();
+        this.currentTemplate = null;
 
         // Current document info for processing
         this.currentPdfFile = null;
@@ -24,6 +28,7 @@ class RegionEditor {
         QualityReview.init();
         CanvasManager.init();
         this.setupEventListeners();
+        this.updateTemplateDropdown();
         this.updateStatus('Load a PDF or image to start drawing regions');
     }
 
@@ -50,6 +55,10 @@ class RegionEditor {
         Utils.addSafeEventListener('saveTemplate', 'click', () => this.saveTemplate());
         Utils.addSafeEventListener('loadTemplate', 'click', () => this.loadTemplate());
 
+        // Template management
+        Utils.addSafeEventListener('templateSelect', 'change', (e) => this.selectTemplate(e.target.value));
+        Utils.addSafeEventListener('deleteTemplate', 'click', () => this.deleteCurrentTemplate());
+
         // Skew controls
         Utils.addSafeEventListener('skewSlider', 'input', (e) => this.updateSkew(e.target.value));
         Utils.addSafeEventListener('resetSkew', 'click', () => this.resetSkew());
@@ -63,13 +72,158 @@ class RegionEditor {
         Utils.addSafeEventListener('processCurrentDoc', 'click', () => this.processCurrentDocument());
     }
 
+    /**
+     * Load saved templates from localStorage
+     */
+    loadSavedTemplates() {
+        const templates = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('ocr_template_')) {
+                const templateName = key.replace('ocr_template_', '');
+                try {
+                    templates[templateName] = JSON.parse(localStorage.getItem(key));
+                } catch (error) {
+                    console.warn(`Failed to load template ${templateName}:`, error);
+                }
+            }
+        }
+        return templates;
+    }
+
+    /**
+     * Update template dropdown
+     */
+    updateTemplateDropdown() {
+        let selectEl = document.getElementById('templateSelect');
+        if (!selectEl) {
+            // Create template controls if they don't exist
+            this.createTemplateControls();
+            selectEl = document.getElementById('templateSelect');
+        }
+
+        if (!selectEl) return;
+
+        const currentValue = selectEl.value;
+        selectEl.innerHTML = '<option value="">Choose a template...</option>';
+
+        Object.keys(this.savedTemplates).forEach(templateName => {
+            const option = document.createElement('option');
+            option.value = templateName;
+            option.textContent = templateName;
+            selectEl.appendChild(option);
+        });
+
+        // Restore selection if template still exists
+        if (currentValue && this.savedTemplates[currentValue]) {
+            selectEl.value = currentValue;
+        }
+    }
+
+    /**
+     * Create template controls in the sidebar
+     */
+    createTemplateControls() {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return;
+
+        const existingTemplateSection = document.getElementById('templateSection');
+        if (existingTemplateSection) {
+            existingTemplateSection.remove();
+        }
+
+        const templateSection = document.createElement('div');
+        templateSection.id = 'templateSection';
+        templateSection.style.marginTop = '30px';
+
+        templateSection.innerHTML = `
+            <h4>Templates</h4>
+            <div style="margin-bottom: 10px;">
+                <select id="templateSelect" style="width: 100%; margin-bottom: 8px;">
+                    <option value="">Choose a template...</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+                <button class="btn" id="saveTemplate" style="flex: 1;">Save</button>
+                <button class="btn" id="loadTemplate" style="flex: 1;">Load</button>
+                <button class="btn btn-danger" id="deleteTemplate" style="flex: 1; font-size: 11px;">Delete</button>
+            </div>
+            <div class="help-text">
+                Templates store region layouts and can guide auto-detection for similar pages. The Auto-Detect button will use the selected template or current regions as guidance.
+            </div>
+        `;
+
+        sidebar.appendChild(templateSection);
+
+        // Re-setup event listeners for the new elements
+        Utils.addSafeEventListener('templateSelect', 'change', (e) => this.selectTemplate(e.target.value));
+        Utils.addSafeEventListener('saveTemplate', 'click', () => this.saveTemplate());
+        Utils.addSafeEventListener('loadTemplate', 'click', () => this.loadTemplate());
+        Utils.addSafeEventListener('deleteTemplate', 'click', () => this.deleteCurrentTemplate());
+    }
+
+    /**
+     * Select a template from dropdown
+     */
+    selectTemplate(templateName) {
+        if (templateName && this.savedTemplates[templateName]) {
+            this.currentTemplate = this.savedTemplates[templateName];
+            this.updateStatus(`Selected template: ${templateName}`);
+        } else {
+            this.currentTemplate = null;
+        }
+    }
+
+    /**
+     * Delete current template
+     */
+    deleteCurrentTemplate() {
+        const selectEl = document.getElementById('templateSelect');
+        const templateName = selectEl ? selectEl.value : null;
+
+        if (!templateName) {
+            this.updateStatus('No template selected');
+            return;
+        }
+
+        if (confirm(`Delete template "${templateName}"? This cannot be undone.`)) {
+            localStorage.removeItem('ocr_template_' + templateName);
+            delete this.savedTemplates[templateName];
+            this.currentTemplate = null;
+            this.updateTemplateDropdown();
+            this.updateStatus(`Template "${templateName}" deleted`);
+        }
+    }
+
     async loadFile(file) {
         if (!file) return;
+
+        console.log('loadFile called with:', file.name, file.type);
 
         // Store current file info for processing
         this.currentPdfFile = file;
         this.currentFilename = file.name;
         this.updateCurrentDocInfo();
+
+        // Initialize DetectionConfig when first file is loaded
+        console.log('Checking DetectionConfig initialization...');
+        console.log('DetectionConfig available:', typeof DetectionConfig !== 'undefined');
+        console.log('DetectionConfig already initialized:', DetectionConfig && DetectionConfig.initialized);
+
+        if (window.DetectionConfig && !window.DetectionConfig.initialized) {
+            console.log('Initializing DetectionConfig after file load');
+            try {
+                DetectionConfig.init();
+                DetectionConfig.initialized = true;
+                console.log('DetectionConfig initialization successful');
+            } catch (error) {
+                console.error('DetectionConfig initialization failed:', error);
+            }
+        } else if (!window.DetectionConfig) {
+            console.error('DetectionConfig not available!');
+        } else {
+            console.log('DetectionConfig already initialized, skipping');
+        }
 
         if (file.type === 'application/pdf') {
             await this.loadPDF(file);
@@ -256,6 +410,9 @@ class RegionEditor {
         }
     }
 
+    /**
+     * Enhanced auto-detect regions with comprehensive logging
+     */
     async autoDetectRegions() {
         if (!CanvasManager.image) {
             this.updateStatus('No image loaded. Please load a document first.');
@@ -265,6 +422,40 @@ class RegionEditor {
         try {
             this.updateStatus('Auto-detecting regions...');
 
+            // Create detection log
+            const detectionLog = {
+                timestamp: new Date().toISOString(),
+                filename: this.currentFilename || 'unknown',
+                currentPage: this.currentPage,
+                imageInfo: {
+                    width: CanvasManager.image.width,
+                    height: CanvasManager.image.height,
+                    displayScale: CanvasManager.scale
+                },
+                existingRegions: [],
+                templateInfo: null,
+                detectionSettings: {},
+                detectionResults: {},
+                textRegions: [],
+                proposedRegions: []
+            };
+
+            // Log existing regions (what user has currently defined)
+            const currentRegions = CanvasManager.getRegions();
+            detectionLog.existingRegions = currentRegions.map(region => ({
+                type: region.type,
+                x: Math.round(region.x / CanvasManager.scale),
+                y: Math.round(region.y / CanvasManager.scale),
+                width: Math.round(region.width / CanvasManager.scale),
+                height: Math.round(region.height / CanvasManager.scale),
+                displayCoords: {
+                    x: Math.round(region.x),
+                    y: Math.round(region.y),
+                    width: Math.round(region.width),
+                    height: Math.round(region.height)
+                }
+            }));
+
             // Create a canvas with the current image for analysis
             const analysisCanvas = document.createElement('canvas');
             const analysisCtx = analysisCanvas.getContext('2d');
@@ -272,25 +463,131 @@ class RegionEditor {
             analysisCanvas.height = CanvasManager.image.height;
             analysisCtx.drawImage(CanvasManager.image, 0, 0);
 
-            // Get current regions as template (scaled back to original coordinates)
-            const currentRegions = CanvasManager.getRegions();
-            const templateRegions = currentRegions.map(region => ({
-                x: region.x / CanvasManager.scale,
-                y: region.y / CanvasManager.scale,
-                width: region.width / CanvasManager.scale,
-                height: region.height / CanvasManager.scale,
-                type: region.type
-            }));
+            // Get template regions as guidance
+            let templateRegions = [];
 
-            // Run auto-detection
-            const result = await RegionDetector.autoDetectRegions(analysisCanvas, templateRegions, {
+            // First priority: Current template selection
+            if (this.currentTemplate && this.currentTemplate.regions) {
+                templateRegions = this.currentTemplate.regions.map(region => ({
+                    x: region.x / CanvasManager.scale,
+                    y: region.y / CanvasManager.scale,
+                    width: region.width / CanvasManager.scale,
+                    height: region.height / CanvasManager.scale,
+                    type: region.type
+                }));
+                detectionLog.templateInfo = {
+                    source: 'selected_template',
+                    name: this.currentTemplate.name || 'unknown',
+                    regionCount: templateRegions.length,
+                    regions: templateRegions.map(r => ({
+                        type: r.type,
+                        x: Math.round(r.x),
+                        y: Math.round(r.y),
+                        width: Math.round(r.width),
+                        height: Math.round(r.height)
+                    }))
+                };
+                this.updateStatus('Using selected template as guidance...');
+            }
+            // Second priority: Current page regions (if any)
+            else {
+                if (currentRegions.length > 0) {
+                    templateRegions = currentRegions.map(region => ({
+                        x: region.x / CanvasManager.scale,
+                        y: region.y / CanvasManager.scale,
+                        width: region.width / CanvasManager.scale,
+                        height: region.height / CanvasManager.scale,
+                        type: region.type
+                    }));
+                    detectionLog.templateInfo = {
+                        source: 'current_regions',
+                        regionCount: templateRegions.length,
+                        regions: templateRegions.map(r => ({
+                            type: r.type,
+                            x: Math.round(r.x),
+                            y: Math.round(r.y),
+                            width: Math.round(r.width),
+                            height: Math.round(r.height)
+                        }))
+                    };
+                    this.updateStatus('Using current regions as template...');
+                }
+                // Third priority: Ask user to select a template
+                else if (Object.keys(this.savedTemplates).length > 0) {
+                    const templateName = await this.promptForTemplate();
+                    if (templateName && this.savedTemplates[templateName]) {
+                        templateRegions = this.savedTemplates[templateName].regions.map(region => ({
+                            x: region.x / CanvasManager.scale,
+                            y: region.y / CanvasManager.scale,
+                            width: region.width / CanvasManager.scale,
+                            height: region.height / CanvasManager.scale,
+                            type: region.type
+                        }));
+                        detectionLog.templateInfo = {
+                            source: 'user_selected_template',
+                            name: templateName,
+                            regionCount: templateRegions.length,
+                            regions: templateRegions.map(r => ({
+                                type: r.type,
+                                x: Math.round(r.x),
+                                y: Math.round(r.y),
+                                width: Math.round(r.width),
+                                height: Math.round(r.height)
+                            }))
+                        };
+                        this.updateStatus(`Using template "${templateName}" as guidance...`);
+                    } else {
+                        detectionLog.templateInfo = { source: 'none', reason: 'user_cancelled' };
+                    }
+                } else {
+                    detectionLog.templateInfo = { source: 'none', reason: 'no_templates_available' };
+                }
+            }
+
+            // Log detection settings
+            detectionLog.detectionSettings = {
                 threshold: 128,
                 minRegionSize: 200,
-                confidenceThreshold: 0.5
-            });
+                confidenceThreshold: 0.5,
+                useTemplateGuidance: templateRegions.length > 0,
+                templateRegionCount: templateRegions.length
+            };
 
-            if (result.success && result.regions.length > 0) {
-                // Convert detected regions back to canvas coordinates
+            // Run auto-detection with template guidance and configuration
+            const detectionOptions = {
+                threshold: 128,
+                minRegionSize: 200,
+                confidenceThreshold: 0.5,
+                useTemplateGuidance: templateRegions.length > 0,
+                detectionLog: detectionLog // Pass log object to detector
+            };
+
+            // Get configuration if available
+            if (window.DetectionConfig && window.DetectionConfig.currentConfig) {
+                const config = window.DetectionConfig.currentConfig;
+                Object.assign(detectionOptions, {
+                    threshold: config.global.threshold,
+                    minRegionSize: config.global.minRegionSize,
+                    confidenceThreshold: config.global.confidenceThreshold,
+                    preventOverlap: config.global.preventOverlap,
+                    overlapTolerance: config.global.overlapTolerance,
+                    templateAdherence: config.global.templateAdherence,
+                    regionTypeConfig: config.regionTypes
+                });
+            }
+
+            const result = await RegionDetector.autoDetectRegions(analysisCanvas, templateRegions, detectionOptions);
+
+            // Log detection results
+            detectionLog.detectionResults = {
+                success: result.success,
+                error: result.error || null,
+                metadata: result.metadata || {},
+                proposedRegionCount: result.regions ? result.regions.length : 0
+            };
+
+            if (result.success && result.regions) {
+                // Convert detected regions back to canvas coordinates and log
                 const detectedRegions = result.regions.map(region => ({
                     x: region.x * CanvasManager.scale,
                     y: region.y * CanvasManager.scale,
@@ -301,37 +598,304 @@ class RegionEditor {
                     source: region.source
                 }));
 
-                // Ask user if they want to replace current regions or merge
-                const action = confirm(
-                    `Auto-detection found ${result.regions.length} regions.\n\n` +
-                    `Current regions: ${currentRegions.length}\n` +
-                    `Template used: ${result.metadata.usedTemplate ? 'Yes' : 'No'}\n\n` +
-                    `Click OK to REPLACE current regions, Cancel to MERGE with existing.`
-                );
+                detectionLog.proposedRegions = result.regions.map(region => ({
+                    type: region.type,
+                    x: Math.round(region.x),
+                    y: Math.round(region.y),
+                    width: Math.round(region.width),
+                    height: Math.round(region.height),
+                    confidence: Math.round(region.confidence * 100) / 100,
+                    source: region.source,
+                    displayCoords: {
+                        x: Math.round(region.x * CanvasManager.scale),
+                        y: Math.round(region.y * CanvasManager.scale),
+                        width: Math.round(region.width * CanvasManager.scale),
+                        height: Math.round(region.height * CanvasManager.scale)
+                    }
+                }));
 
-                if (action) {
-                    // Replace all regions
-                    CanvasManager.setRegions(detectedRegions);
-                    this.updateStatus(`Replaced regions with ${detectedRegions.length} auto-detected regions`);
+                // Log the complete detection session
+                this.logDetectionSession(detectionLog);
+
+                if (detectedRegions.length > 0) {
+                    // Show detection results and options
+                    await this.showDetectionResults(detectedRegions, result.metadata);
                 } else {
-                    // Merge with existing regions
-                    const mergedRegions = [...currentRegions, ...detectedRegions];
-                    CanvasManager.setRegions(mergedRegions);
-                    this.updateStatus(`Added ${detectedRegions.length} auto-detected regions (total: ${mergedRegions.length})`);
+                    this.updateStatus('Auto-detection completed but no suitable regions found. Check console for detailed log.');
                 }
 
-                this.updateRegionList();
-
             } else if (result.success && result.regions.length === 0) {
-                this.updateStatus('Auto-detection completed but no suitable regions found. Try adjusting the image or using manual region drawing.');
+                detectionLog.detectionResults.reason = 'no_regions_found';
+                this.logDetectionSession(detectionLog);
+                this.updateStatus('Auto-detection completed but no suitable regions found. Try adjusting the image, creating a template, or using manual region drawing. Check console for detailed log.');
             } else {
-                this.updateStatus('Auto-detection failed: ' + (result.error || 'Unknown error'));
+                detectionLog.detectionResults.reason = result.error || 'unknown_error';
+                this.logDetectionSession(detectionLog);
+                this.updateStatus('Auto-detection failed: ' + (result.error || 'Unknown error') + '. Check console for detailed log.');
             }
 
         } catch (error) {
             console.error('Auto-detection error:', error);
-            this.updateStatus('Auto-detection failed: ' + error.message);
+            this.updateStatus('Auto-detection failed: ' + error.message + '. Check console for detailed log.');
         }
+    }
+
+    /**
+     * Log comprehensive detection session data
+     */
+    logDetectionSession(detectionLog) {
+        console.group(`🎯 Auto-Detection Session - ${detectionLog.timestamp}`);
+
+        // Document info
+        console.group("📄 Document Information");
+        console.log("Filename:", detectionLog.filename);
+        console.log("Current Page:", detectionLog.currentPage);
+        console.log("Image Dimensions:", `${detectionLog.imageInfo.width}x${detectionLog.imageInfo.height}px`);
+        console.log("Display Scale:", detectionLog.imageInfo.displayScale);
+        console.groupEnd();
+
+        // Existing regions (what user currently has)
+        console.group("🎨 Current User-Defined Regions");
+        if (detectionLog.existingRegions.length > 0) {
+            console.log(`Count: ${detectionLog.existingRegions.length} regions`);
+            console.table(detectionLog.existingRegions);
+        } else {
+            console.log("No existing regions defined");
+        }
+        console.groupEnd();
+
+        // Template information
+        console.group("📋 Template Information");
+        if (detectionLog.templateInfo && detectionLog.templateInfo.source !== 'none') {
+            console.log("Source:", detectionLog.templateInfo.source);
+            if (detectionLog.templateInfo.name) {
+                console.log("Template Name:", detectionLog.templateInfo.name);
+            }
+            console.log(`Region Count: ${detectionLog.templateInfo.regionCount}`);
+            if (detectionLog.templateInfo.regions) {
+                console.table(detectionLog.templateInfo.regions);
+            }
+        } else {
+            console.log("No template used");
+            if (detectionLog.templateInfo && detectionLog.templateInfo.reason) {
+                console.log("Reason:", detectionLog.templateInfo.reason);
+            }
+        }
+        console.groupEnd();
+
+        // Detection settings
+        console.group("⚙️ Detection Settings");
+        console.table(detectionLog.detectionSettings);
+        console.groupEnd();
+
+        // Text regions found
+        if (detectionLog.textRegions && detectionLog.textRegions.length > 0) {
+            console.group("📝 Detected Text Regions");
+            console.log(`Found ${detectionLog.textRegions.length} text regions`);
+            console.table(detectionLog.textRegions);
+            console.groupEnd();
+        }
+
+        // Proposed regions (what auto-detection suggests)
+        console.group("🎯 Auto-Detection Results");
+        console.log("Success:", detectionLog.detectionResults.success);
+        if (detectionLog.detectionResults.error) {
+            console.error("Error:", detectionLog.detectionResults.error);
+        }
+        if (detectionLog.detectionResults.metadata) {
+            console.log("Metadata:", detectionLog.detectionResults.metadata);
+        }
+        if (detectionLog.proposedRegions.length > 0) {
+            console.log(`Proposed ${detectionLog.proposedRegions.length} regions:`);
+            console.table(detectionLog.proposedRegions);
+        } else {
+            console.log("No regions proposed");
+            if (detectionLog.detectionResults.reason) {
+                console.log("Reason:", detectionLog.detectionResults.reason);
+            }
+        }
+        console.groupEnd();
+
+        // Summary comparison
+        console.group("📊 Summary Comparison");
+        console.log("Current regions:", detectionLog.existingRegions.length);
+        console.log("Template regions:", detectionLog.templateInfo ? (detectionLog.templateInfo.regionCount || 0) : 0);
+        console.log("Proposed regions:", detectionLog.proposedRegions.length);
+
+        if (detectionLog.existingRegions.length > 0 && detectionLog.proposedRegions.length > 0) {
+            console.log("\n🔍 Region Type Comparison:");
+            const currentTypes = detectionLog.existingRegions.map(r => r.type);
+            const proposedTypes = detectionLog.proposedRegions.map(r => r.type);
+            console.log("Current types:", [...new Set(currentTypes)]);
+            console.log("Proposed types:", [...new Set(proposedTypes)]);
+        }
+        console.groupEnd();
+
+        // Store in global for easy access
+        window.lastDetectionLog = detectionLog;
+        console.log("💾 Complete log stored in window.lastDetectionLog");
+
+        console.groupEnd();
+    }
+
+    /**
+     * Prompt user to select a template for auto-detection
+     */
+    async promptForTemplate() {
+        return new Promise((resolve) => {
+            const templateNames = Object.keys(this.savedTemplates);
+            let message = 'No regions found on current page.\nSelect a template to guide auto-detection:\n\n';
+            templateNames.forEach((name, index) => {
+                message += `${index + 1}. ${name}\n`;
+            });
+            message += '\nEnter template number (or cancel):';
+
+            const selection = prompt(message);
+            if (selection && !isNaN(selection)) {
+                const index = parseInt(selection) - 1;
+                if (index >= 0 && index < templateNames.length) {
+                    resolve(templateNames[index]);
+                    return;
+                }
+            }
+            resolve(null);
+        });
+    }
+
+    /**
+     * Show auto-detection results with options
+     */
+    async showDetectionResults(detectedRegions, metadata) {
+        const currentRegions = CanvasManager.getRegions();
+
+        let message = `🎯 Auto-Detection Results:\n\n`;
+        message += `• Regions found: ${detectedRegions.length}\n`;
+        message += `• Current regions: ${currentRegions.length}\n`;
+        message += `• Template used: ${metadata.usedTemplate ? 'Yes' : 'No'}\n`;
+        message += `• Text areas analyzed: ${metadata.textAreasFound}\n\n`;
+
+        if (detectedRegions.length > 0) {
+            message += `Detected regions:\n`;
+            detectedRegions.forEach((region, index) => {
+                message += `${index + 1}. ${region.type} (${Math.round(region.confidence * 100)}% confidence)\n`;
+            });
+            message += `\nChoose action:\n`;
+            message += `1. Replace all current regions\n`;
+            message += `2. Add to current regions\n`;
+            message += `3. Preview only (no changes)\n`;
+            message += `4. Cancel\n`;
+        }
+
+        const choice = prompt(message + '\nEnter choice (1-4):');
+
+        switch (choice) {
+            case '1':
+                // Replace all regions
+                CanvasManager.setRegions(detectedRegions);
+                this.updateStatus(`Replaced regions with ${detectedRegions.length} auto-detected regions`);
+                this.updateRegionList();
+                break;
+            case '2':
+                // Add to existing regions
+                const mergedRegions = [...currentRegions, ...detectedRegions];
+                CanvasManager.setRegions(mergedRegions);
+                this.updateStatus(`Added ${detectedRegions.length} auto-detected regions (total: ${mergedRegions.length})`);
+                this.updateRegionList();
+                break;
+            case '3':
+                // Preview mode - temporarily show detected regions
+                this.previewDetectedRegions(detectedRegions, currentRegions);
+                break;
+            case '4':
+            default:
+                this.updateStatus('Auto-detection cancelled');
+                break;
+        }
+    }
+
+    /**
+     * Preview detected regions temporarily
+     */
+    async previewDetectedRegions(detectedRegions, originalRegions) {
+        // Show detected regions
+        CanvasManager.setRegions(detectedRegions);
+        this.updateRegionList();
+        this.updateStatus('Previewing auto-detected regions - they will revert in 10 seconds unless you take action');
+
+        // Create preview dialog
+        const previewDialog = document.createElement('div');
+        previewDialog.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+            max-width: 400px;
+        `;
+
+        previewDialog.innerHTML = `
+            <h3>Preview Mode</h3>
+            <p>Auto-detected regions are shown in <span style="color: #007acc;">blue</span>.</p>
+            <p>Choose your action:</p>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button id="keepDetected" class="btn" style="background: #28a745; color: white;">Keep These</button>
+                <button id="addToExisting" class="btn" style="background: #007acc; color: white;">Add to Existing</button>
+                <button id="revertPreview" class="btn" style="background: #6c757d; color: white;">Revert</button>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                Auto-reverting in <span id="countdown">10</span> seconds...
+            </div>
+        `;
+
+        document.body.appendChild(previewDialog);
+
+        // Countdown timer
+        let countdown = 10;
+        const countdownEl = document.getElementById('countdown');
+        const timer = setInterval(() => {
+            countdown--;
+            if (countdownEl) countdownEl.textContent = countdown;
+            if (countdown <= 0) {
+                clearInterval(timer);
+                this.revertPreview(originalRegions, previewDialog);
+            }
+        }, 1000);
+
+        // Setup button handlers
+        document.getElementById('keepDetected').onclick = () => {
+            clearInterval(timer);
+            previewDialog.remove();
+            this.updateStatus(`Kept ${detectedRegions.length} auto-detected regions`);
+            this.updateRegionList();
+        };
+
+        document.getElementById('addToExisting').onclick = () => {
+            clearInterval(timer);
+            previewDialog.remove();
+            const mergedRegions = [...originalRegions, ...detectedRegions];
+            CanvasManager.setRegions(mergedRegions);
+            this.updateStatus(`Added ${detectedRegions.length} auto-detected regions to existing ${originalRegions.length}`);
+            this.updateRegionList();
+        };
+
+        document.getElementById('revertPreview').onclick = () => {
+            clearInterval(timer);
+            this.revertPreview(originalRegions, previewDialog);
+        };
+    }
+
+    /**
+     * Revert preview to original regions
+     */
+    revertPreview(originalRegions, previewDialog) {
+        CanvasManager.setRegions(originalRegions);
+        this.updateRegionList();
+        this.updateStatus('Reverted to original regions');
+        previewDialog.remove();
     }
 
     updateRegionTypeSelect() {
@@ -377,36 +941,65 @@ class RegionEditor {
     }
 
     saveTemplate() {
+        const regions = CanvasManager.getRegions();
+        if (regions.length === 0) {
+            this.updateStatus('No regions to save as template');
+            return;
+        }
+
+        const templateName = prompt('Template name:', `template_${Date.now()}`);
+        if (!templateName) return;
+
         const template = {
-            regions: CanvasManager.getRegions(),
+            regions: regions,
             skew: CanvasManager.skewAngle,
-            name: prompt('Template name:') || 'template'
+            name: templateName,
+            created: new Date().toISOString(),
+            pageSize: {
+                width: CanvasManager.image?.width || 0,
+                height: CanvasManager.image?.height || 0
+            }
         };
 
-        localStorage.setItem('ocr_template_' + template.name, JSON.stringify(template));
-        this.updateStatus(`Template "${template.name}" saved`);
+        localStorage.setItem('ocr_template_' + templateName, JSON.stringify(template));
+        this.savedTemplates[templateName] = template;
+        this.updateTemplateDropdown();
+
+        // Auto-select the newly saved template
+        const selectEl = document.getElementById('templateSelect');
+        if (selectEl) {
+            selectEl.value = templateName;
+            this.currentTemplate = template;
+        }
+
+        this.updateStatus(`Template "${templateName}" saved with ${regions.length} regions`);
     }
 
     loadTemplate() {
-        const name = prompt('Template name to load:');
-        if (!name) return;
+        const selectEl = document.getElementById('templateSelect');
+        const templateName = selectEl ? selectEl.value : null;
 
-        const template = localStorage.getItem('ocr_template_' + name);
+        if (!templateName) {
+            this.updateStatus('Please select a template from the dropdown first');
+            return;
+        }
+
+        const template = this.savedTemplates[templateName];
         if (template) {
-            const data = JSON.parse(template);
-            CanvasManager.setRegions(data.regions || []);
+            CanvasManager.setRegions(template.regions || []);
 
-            const skew = data.skew || 0;
+            const skew = template.skew || 0;
             CanvasManager.setSkew(skew);
 
             const slider = document.getElementById('skewSlider');
             if (slider) slider.value = skew;
             Utils.updateText('skewValue', skew + '°');
 
+            this.currentTemplate = template;
             this.updateRegionList();
-            this.updateStatus(`Template "${name}" loaded`);
+            this.updateStatus(`Template "${templateName}" loaded with ${template.regions?.length || 0} regions`);
         } else {
-            this.updateStatus(`Template "${name}" not found`);
+            this.updateStatus(`Template "${templateName}" not found`);
         }
     }
 

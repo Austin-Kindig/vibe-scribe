@@ -625,3 +625,242 @@ input[type="range"] {
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
+
+/* Detection Configuration Panel Styles */
+.detection-config-panel {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 15px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.config-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.config-panel-header h4 {
+    margin: 0;
+    color: #333;
+}
+
+.config-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.config-tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.config-tab {
+    background: none;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.config-tab:hover {
+    background: #e9ecef;
+}
+
+.config-tab.active {
+    background: white;
+    border-bottom-color: #007acc;
+    font-weight: bold;
+}
+
+.config-content {
+    padding: 0;
+}
+
+.config-tab-content {
+    display: none;
+    padding: 20px;
+}
+
+.config-tab-content.active {
+    display: block;
+}
+
+.config-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.config-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.config-section h5 {
+    margin: 0 0 15px 0;
+    color: #007acc;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.config-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 10px;
+}
+
+.config-row label {
+    flex: 0 0 180px;
+    font-size: 14px;
+    color: #333;
+}
+
+.config-row input[type="range"] {
+    flex: 1;
+    margin: 0 10px;
+}
+
+.config-row input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.config-value {
+    flex: 0 0 60px;
+    font-weight: bold;
+    color: #007acc;
+    text-align: right;
+    font-size: 13px;
+}
+
+.config-row small {
+    flex: 1;
+    color: #666;
+    font-size: 11px;
+    margin-left: 10px;
+}
+
+.config-preview {
+    padding: 15px;
+    border-top: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.config-preview-results {
+    margin-top: 10px;
+    min-height: 20px;
+}
+
+.preview-message {
+    color: #666;
+    font-style: italic;
+    font-size: 13px;
+}
+
+.preview-summary {
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #e7f3ff;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.preview-regions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.preview-region {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.preview-region .region-type {
+    flex: 0 0 100px;
+    font-weight: bold;
+    color: #007acc;
+}
+
+.preview-region .region-confidence {
+    flex: 0 0 50px;
+    text-align: center;
+    padding: 2px 6px;
+    background: #28a745;
+    color: white;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.preview-region .region-coords {
+    flex: 1;
+    text-align: right;
+    color: #666;
+    font-family: monospace;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .config-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+    }
+
+    .config-row label {
+        flex: none;
+    }
+
+    .config-value {
+        text-align: left;
+    }
+
+    .config-tabs {
+        flex-wrap: wrap;
+    }
+
+    .config-tab {
+        flex: 1;
+        min-width: 80px;
+    }
+}
+
+/* Integration with existing styles */
+.detection-config-panel .btn-small {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+.detection-config-panel .btn-small:hover {
+    background: #f0f0f0;
+}
+
+/* Highlight ranges when adjusting */
+.config-row input[type="range"]:active + .config-value {
+    background: #007acc;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: all 0.2s;
+}

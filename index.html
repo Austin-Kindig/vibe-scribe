@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OCR Region Editor</title>
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/detection-config.css">
 </head>
 <body>
 <div class="toolbar">
@@ -160,12 +161,20 @@
       <!-- Regions will be added here dynamically -->
     </div>
 
-    <div style="margin-top: 30px;">
+    <div style="margin-top: 30px;" id="templateSection">
       <h4>Templates</h4>
-      <button class="btn" id="saveTemplate" style="width: 100%; margin-bottom: 8px;">Save as Template</button>
-      <button class="btn" id="loadTemplate" style="width: 100%;">Load Template</button>
+      <div style="margin-bottom: 10px;">
+        <select id="templateSelect" style="width: 100%; margin-bottom: 8px;">
+          <option value="">Choose a template...</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+        <button class="btn" id="saveTemplate" style="flex: 1;">Save</button>
+        <button class="btn" id="loadTemplate" style="flex: 1;">Load</button>
+        <button class="btn btn-danger" id="deleteTemplate" style="flex: 1; font-size: 11px;">Delete</button>
+      </div>
       <div class="help-text">
-        Save region layouts as templates for similar pages.
+        Templates store region layouts and can guide auto-detection for similar pages. The Auto-Detect button will use the selected template or current regions as guidance.
       </div>
     </div>
   </div>
@@ -199,6 +208,7 @@
 <script src="js/PDFHandler.js"></script>
 <script src="js/ImageProcessor.js"></script>
 <script src="js/QualityReview.js"></script>
+<script src="js/DetectionConfig.js"></script>
 <script src="js/RegionDetector.js"></script>
 <script src="js/CanvasManager.js"></script>
 <script src="js/RegionEditorCore.js"></script>

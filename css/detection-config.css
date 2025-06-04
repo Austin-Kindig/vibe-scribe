@@ -1,0 +1,525 @@
+/* Detection Configuration Panel Styles */
+.detection-config-panel {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 15px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.config-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.config-panel-header h4 {
+    margin: 0;
+    color: #333;
+}
+
+.config-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.config-tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.config-tab {
+    background: none;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.config-tab:hover {
+    background: #e9ecef;
+}
+
+.config-tab.active {
+    background: white;
+    border-bottom-color: #007acc;
+    font-weight: bold;
+}
+
+.config-content {
+    padding: 0;
+}
+
+.config-tab-content {
+    display: none;
+    padding: 20px;
+}
+
+.config-tab-content.active {
+    display: block;
+}
+
+.config-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.config-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.config-section h5 {
+    margin: 0 0 15px 0;
+    color: #007acc;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.config-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 10px;
+}
+
+.config-row label {
+    flex: 0 0 180px;
+    font-size: 14px;
+    color: #333;
+}
+
+.config-row input[type="range"] {
+    flex: 1;
+    margin: 0 10px;
+}
+
+.config-row input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.config-value {
+    flex: 0 0 60px;
+    font-weight: bold;
+    color: #007acc;
+    text-align: right;
+    font-size: 13px;
+}
+
+.config-row small {
+    flex: 1;
+    color: #666;
+    font-size: 11px;
+    margin-left: 10px;
+}
+
+.config-preview {
+    padding: 15px;
+    border-top: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.config-preview-results {
+    margin-top: 10px;
+    min-height: 20px;
+}
+
+.preview-message {
+    color: #666;
+    font-style: italic;
+    font-size: 13px;
+}
+
+.preview-summary {
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #e7f3ff;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.preview-regions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.preview-region {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.preview-region .region-type {
+    flex: 0 0 100px;
+    font-weight: bold;
+    color: #007acc;
+}
+
+.preview-region .region-confidence {
+    flex: 0 0 50px;
+    text-align: center;
+    padding: 2px 6px;
+    background: #28a745;
+    color: white;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.preview-region .region-coords {
+    flex: 1;
+    text-align: right;
+    color: #666;
+    font-family: monospace;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .config-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+    }
+
+    .config-row label {
+        flex: none;
+    }
+
+    .config-value {
+        text-align: left;
+    }
+
+    .config-tabs {
+        flex-wrap: wrap;
+    }
+
+    .config-tab {
+        flex: 1;
+        min-width: 80px;
+    }
+}
+
+/* Integration with existing styles */
+.detection-config-panel .btn-small {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+.detection-config-panel .btn-small:hover {
+    background: #f0f0f0;
+}
+
+/* Highlight ranges when adjusting */
+.config-row input[type="range"]:active + .config-value {
+    background: #007acc;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+/* Configuration Sweep Results */
+.sweep-results {
+    margin-top: 15px;
+}
+
+.top-configs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.config-result {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    gap: 12px;
+}
+
+.config-result:hover {
+    background: #f8f9fa;
+    border-color: #007acc;
+}
+
+.config-result.best-config {
+    border-color: #28a745;
+    background: #f8fff9;
+}
+
+.config-result.best-config::before {
+    content: "🏆";
+    font-size: 16px;
+}
+
+.config-rank {
+    flex: 0 0 30px;
+    font-weight: bold;
+    font-size: 18px;
+    color: #007acc;
+    text-align: center;
+}
+
+.config-details {
+    flex: 1;
+}
+
+.config-name {
+    font-weight: bold;
+    font-size: 13px;
+    color: #333;
+    font-family: monospace;
+}
+
+.config-scores {
+    font-size: 11px;
+    color: #28a745;
+    margin: 3px 0;
+    font-weight: 600;
+}
+
+.config-params {
+    font-size: 10px;
+    color: #666;
+    font-family: monospace;
+}
+
+.apply-config {
+    flex: 0 0 80px;
+    text-align: center;
+    font-size: 11px;
+    color: #007acc;
+    font-weight: bold;
+    padding: 4px 8px;
+    border: 1px solid #007acc;
+    border-radius: 3px;
+    background: white;
+}
+
+.config-result:hover .apply-config {
+    background: #007acc;
+    color: white;
+}
+
+/* Comprehensive Results Styles */
+.results-tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin: 15px 0 0 0;
+}
+
+.results-tab {
+    background: none;
+    border: none;
+    padding: 8px 15px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.results-tab:hover {
+    background: #f0f0f0;
+}
+
+.results-tab.active {
+    background: white;
+    border-bottom-color: #28a745;
+    color: #28a745;
+}
+
+.results-content {
+    margin-top: 0;
+}
+
+.results-tab-content {
+    display: none;
+    padding: 15px 0;
+}
+
+.results-tab-content.active {
+    display: block;
+}
+
+.config-category {
+    font-size: 10px;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 2px;
+}
+
+/* Category Results */
+.category-configs {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.category-section {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #007acc;
+}
+
+.category-title {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    color: #007acc;
+    font-weight: bold;
+}
+
+.category-description {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 10px;
+    font-style: italic;
+}
+
+/* Detailed Results */
+.detailed-results {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.metrics-explanation {
+    background: #e7f3ff;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 12px;
+}
+
+.detailed-configs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.detailed-config {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.detailed-config:hover {
+    border-color: #007acc;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.config-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.config-header .config-rank {
+    background: #007acc;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.config-header .config-name {
+    font-weight: bold;
+    font-size: 13px;
+    font-family: monospace;
+}
+
+.config-header .config-category {
+    font-size: 11px;
+    color: #666;
+}
+
+.config-header .overall-score {
+    margin-left: auto;
+    font-weight: bold;
+    font-size: 14px;
+    color: #28a745;
+}
+
+.score-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.score-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.score-label {
+    flex: 0 0 50px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #333;
+}
+
+.score-bar {
+    flex: 1;
+    height: 12px;
+    background: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.score-value {
+    flex: 0 0 50px;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: right;
+}
+
+.config-settings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 10px;
+    color: #666;
+    font-family: monospace;
+}
+
+.config-settings span {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
