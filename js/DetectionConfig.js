@@ -841,7 +841,7 @@ window.DetectionConfig = {
                         overlapTolerance: config.settings.overlapTolerance,
                         templateAdherence: config.settings.templateAdherence,
                         useTemplateGuidance: templateRegions.length > 0,
-                        regionTypeConfig: this.currentConfig.regionTypes
+                        regionTypeConfig: config.regionTypeConfig || this.currentConfig.regionTypes
                     };
 
                     const result = await window.RegionDetector.autoDetectRegions(
@@ -1033,18 +1033,58 @@ window.DetectionConfig = {
         const configs = [];
 
         if (testMode === 'quick') {
-            // Quick test - 10 most promising configurations
+            // Quick test - 10 configurations with varied region-specific settings
             const quickConfigs = [
-                { threshold: 128, adherence: 0.7, confidence: 0.4, overlap: true, name: 'Balanced_Default' },
-                { threshold: 120, adherence: 0.8, confidence: 0.5, overlap: true, name: 'HighPrecision_Template' },
-                { threshold: 140, adherence: 0.5, confidence: 0.3, overlap: true, name: 'TextFocused_Loose' },
-                { threshold: 110, adherence: 0.9, confidence: 0.6, overlap: true, name: 'StrictTemplate' },
-                { threshold: 150, adherence: 0.4, confidence: 0.4, overlap: false, name: 'LooseDetection' },
-                { threshold: 128, adherence: 0.6, confidence: 0.5, overlap: true, name: 'Conservative' },
-                { threshold: 135, adherence: 0.7, confidence: 0.35, overlap: true, name: 'HighRecall' },
-                { threshold: 115, adherence: 0.75, confidence: 0.45, overlap: true, name: 'FineTuned' },
-                { threshold: 128, adherence: 0.5, confidence: 0.4, overlap: false, name: 'NoOverlapCheck' },
-                { threshold: 125, adherence: 0.65, confidence: 0.4, overlap: true, name: 'OptimalMix' }
+                {
+                    name: 'Balanced_Default',
+                    global: { threshold: 128, adherence: 0.7, confidence: 0.4, overlap: true },
+                    regionVariant: 'default'
+                },
+                {
+                    name: 'HighPrecision_Template',
+                    global: { threshold: 120, adherence: 0.8, confidence: 0.5, overlap: true },
+                    regionVariant: 'precision'
+                },
+                {
+                    name: 'TextFocused_Loose',
+                    global: { threshold: 140, adherence: 0.5, confidence: 0.3, overlap: true },
+                    regionVariant: 'loose'
+                },
+                {
+                    name: 'StrictTemplate_TightRegions',
+                    global: { threshold: 110, adherence: 0.9, confidence: 0.6, overlap: true },
+                    regionVariant: 'strict'
+                },
+                {
+                    name: 'LooseDetection_BigMargins',
+                    global: { threshold: 150, adherence: 0.4, confidence: 0.4, overlap: false },
+                    regionVariant: 'expanded'
+                },
+                {
+                    name: 'Conservative_SmallExpansion',
+                    global: { threshold: 128, adherence: 0.6, confidence: 0.5, overlap: true },
+                    regionVariant: 'conservative'
+                },
+                {
+                    name: 'HighRecall_LooseMargins',
+                    global: { threshold: 135, adherence: 0.7, confidence: 0.35, overlap: true },
+                    regionVariant: 'loose_margins'
+                },
+                {
+                    name: 'FineTuned_OptimalExpansion',
+                    global: { threshold: 115, adherence: 0.75, confidence: 0.45, overlap: true },
+                    regionVariant: 'optimal'
+                },
+                {
+                    name: 'NoOverlap_TightBounds',
+                    global: { threshold: 128, adherence: 0.5, confidence: 0.4, overlap: false },
+                    regionVariant: 'tight'
+                },
+                {
+                    name: 'OptimalMix_AdaptiveRegions',
+                    global: { threshold: 125, adherence: 0.65, confidence: 0.4, overlap: true },
+                    regionVariant: 'adaptive'
+                }
             ];
 
             quickConfigs.forEach((config, index) => {
@@ -1052,165 +1092,266 @@ window.DetectionConfig = {
                     name: config.name,
                     category: 'quick',
                     settings: {
-                        threshold: config.threshold,
+                        threshold: config.global.threshold,
                         minRegionSize: 200,
-                        confidenceThreshold: config.confidence,
-                        preventOverlap: config.overlap,
-                        overlapTolerance: config.overlap ? 5 : 0,
-                        templateAdherence: config.adherence
-                    }
+                        confidenceThreshold: config.global.confidence,
+                        preventOverlap: config.global.overlap,
+                        overlapTolerance: config.global.overlap ? 5 : 0,
+                        templateAdherence: config.global.adherence
+                    },
+                    regionTypeConfig: this.generateRegionVariant(config.regionVariant)
                 });
             });
 
         } else if (testMode === 'normal') {
-            // Normal test - 50 well-distributed configurations
-            const thresholds = [100, 115, 128, 140, 160];
-            const adherenceValues = [0.4, 0.6, 0.8];
-            const confidenceThresholds = [0.3, 0.4, 0.5, 0.6];
+            // Normal test - 50+ configurations with systematic region variations
+            const globalCombos = [
+                { threshold: 100, adherence: 0.4, confidence: 0.3 },
+                { threshold: 115, adherence: 0.6, confidence: 0.4 },
+                { threshold: 128, adherence: 0.7, confidence: 0.4 },
+                { threshold: 140, adherence: 0.6, confidence: 0.5 },
+                { threshold: 160, adherence: 0.8, confidence: 0.5 }
+            ];
+
+            const regionVariants = ['default', 'precision', 'loose', 'strict', 'expanded', 'conservative'];
             const overlapSettings = [true, false];
 
-            thresholds.forEach(threshold => {
-                adherenceValues.forEach(adherence => {
-                    confidenceThresholds.forEach(confidence => {
-                        overlapSettings.forEach(preventOverlap => {
-                            configs.push({
-                                name: `T${threshold}_A${adherence}_C${confidence}_O${preventOverlap ? 'Y' : 'N'}`,
-                                category: 'normal',
-                                settings: {
-                                    threshold: threshold,
-                                    minRegionSize: 200,
-                                    confidenceThreshold: confidence,
-                                    preventOverlap: preventOverlap,
-                                    overlapTolerance: preventOverlap ? 5 : 0,
-                                    templateAdherence: adherence
-                                }
-                            });
+            globalCombos.forEach(global => {
+                regionVariants.forEach(variant => {
+                    overlapSettings.forEach(preventOverlap => {
+                        configs.push({
+                            name: `T${global.threshold}_A${global.adherence}_C${global.confidence}_${variant}_O${preventOverlap ? 'Y' : 'N'}`,
+                            category: 'normal',
+                            settings: {
+                                threshold: global.threshold,
+                                minRegionSize: 200,
+                                confidenceThreshold: global.confidence,
+                                preventOverlap: preventOverlap,
+                                overlapTolerance: preventOverlap ? 5 : 0,
+                                templateAdherence: global.adherence
+                            },
+                            regionTypeConfig: this.generateRegionVariant(variant)
                         });
                     });
                 });
-            });
-
-            // Add specialized configurations
-            configs.push({
-                name: 'HistoricalDoc_Optimized',
-                category: 'specialized',
-                settings: { threshold: 110, minRegionSize: 180, confidenceThreshold: 0.4, preventOverlap: true, overlapTolerance: 5, templateAdherence: 0.7 }
             });
 
         } else if (testMode === 'thorough') {
-            // Thorough test - 200+ comprehensive configurations
-            const thresholds = [80, 90, 100, 110, 120, 128, 135, 140, 150, 160, 170, 180];
-            const adherenceValues = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
-            const confidenceThresholds = [0.2, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7];
-            const regionSizes = [150, 180, 200, 220, 250, 300];
-            const overlapTolerances = [0, 3, 5, 8, 10, 15];
+            // Thorough test - 200+ configurations with comprehensive region testing
+            const thresholds = [90, 100, 115, 128, 140, 160, 180];
+            const adherenceValues = [0.3, 0.5, 0.7, 0.9];
+            const confidenceThresholds = [0.3, 0.4, 0.5, 0.6];
+            const regionVariants = ['default', 'precision', 'loose', 'strict', 'expanded', 'conservative', 'adaptive', 'tight'];
 
-            // Generate comprehensive base combinations
-            const baseThresholds = [100, 120, 128, 140, 160];
-            const baseAdherence = [0.3, 0.5, 0.7, 0.9];
-            const baseConfidence = [0.3, 0.4, 0.5, 0.6];
-
-            baseThresholds.forEach(threshold => {
-                baseAdherence.forEach(adherence => {
-                    baseConfidence.forEach(confidence => {
-                        [true, false].forEach(preventOverlap => {
+            // Comprehensive global + region combinations
+            thresholds.forEach(threshold => {
+                adherenceValues.forEach(adherence => {
+                    confidenceThresholds.forEach(confidence => {
+                        regionVariants.forEach(variant => {
                             configs.push({
-                                name: `Base_T${threshold}_A${adherence}_C${confidence}_O${preventOverlap ? 'Y' : 'N'}`,
-                                category: 'base',
+                                name: `Thorough_T${threshold}_A${adherence}_C${confidence}_${variant}`,
+                                category: 'thorough',
                                 settings: {
                                     threshold: threshold,
                                     minRegionSize: 200,
                                     confidenceThreshold: confidence,
-                                    preventOverlap: preventOverlap,
-                                    overlapTolerance: preventOverlap ? 5 : 0,
+                                    preventOverlap: true,
+                                    overlapTolerance: 5,
                                     templateAdherence: adherence
-                                }
+                                },
+                                regionTypeConfig: this.generateRegionVariant(variant)
                             });
                         });
                     });
                 });
             });
 
-            // Fine-tuned threshold variations
-            thresholds.forEach(threshold => {
-                [0.6, 0.7].forEach(adherence => {
+            // Region-specific focused tests
+            const regionSizes = [150, 200, 250, 300];
+            regionSizes.forEach(size => {
+                regionVariants.forEach(variant => {
                     configs.push({
-                        name: `Threshold_${threshold}_A${adherence}`,
-                        category: 'threshold_fine',
+                        name: `RegionSize_${size}_${variant}`,
+                        category: 'region_focus',
                         settings: {
-                            threshold: threshold,
-                            minRegionSize: 200,
-                            confidenceThreshold: 0.4,
-                            preventOverlap: true,
-                            overlapTolerance: 5,
-                            templateAdherence: adherence
-                        }
-                    });
-                });
-            });
-
-            // Region size variations
-            regionSizes.forEach(regionSize => {
-                [120, 128, 140].forEach(threshold => {
-                    configs.push({
-                        name: `Size_${regionSize}_T${threshold}`,
-                        category: 'size_variation',
-                        settings: {
-                            threshold: threshold,
-                            minRegionSize: regionSize,
+                            threshold: 128,
+                            minRegionSize: size,
                             confidenceThreshold: 0.4,
                             preventOverlap: true,
                             overlapTolerance: 5,
                             templateAdherence: 0.6
-                        }
+                        },
+                        regionTypeConfig: this.generateRegionVariant(variant)
                     });
                 });
             });
 
-            // Overlap tolerance variations
-            overlapTolerances.forEach(tolerance => {
+            // Margin-specific tuning
+            const marginExpansions = [0, 3, 5, 8, 12, 20];
+            marginExpansions.forEach(expansion => {
                 configs.push({
-                    name: `Overlap_${tolerance}`,
-                    category: 'overlap_tuning',
+                    name: `MarginExpansion_${expansion}`,
+                    category: 'margin_tuning',
                     settings: {
                         threshold: 128,
                         minRegionSize: 200,
                         confidenceThreshold: 0.4,
-                        preventOverlap: tolerance > 0,
-                        overlapTolerance: tolerance,
-                        templateAdherence: 0.6
-                    }
-                });
-            });
-
-            // Extreme and edge cases
-            const extremeCases = [
-                { name: 'VeryStrict', threshold: 100, adherence: 0.9, confidence: 0.7, size: 300, overlap: 0 },
-                { name: 'VeryLoose', threshold: 180, adherence: 0.2, confidence: 0.2, size: 150, overlap: 20 },
-                { name: 'TemplateHeavy', threshold: 120, adherence: 0.95, confidence: 0.3, size: 200, overlap: 3 },
-                { name: 'TextHeavy', threshold: 140, adherence: 0.1, confidence: 0.5, size: 180, overlap: 10 },
-                { name: 'HighThreshold', threshold: 200, adherence: 0.6, confidence: 0.4, size: 200, overlap: 5 },
-                { name: 'LowThreshold', threshold: 70, adherence: 0.6, confidence: 0.4, size: 200, overlap: 5 }
-            ];
-
-            extremeCases.forEach(config => {
-                configs.push({
-                    name: config.name,
-                    category: 'extreme',
-                    settings: {
-                        threshold: config.threshold,
-                        minRegionSize: config.size,
-                        confidenceThreshold: config.confidence,
-                        preventOverlap: config.overlap < 20,
-                        overlapTolerance: config.overlap,
-                        templateAdherence: config.adherence
-                    }
+                        preventOverlap: true,
+                        overlapTolerance: 5,
+                        templateAdherence: 0.7
+                    },
+                    regionTypeConfig: this.generateMarginFocusedVariant(expansion)
                 });
             });
         }
 
-        console.log(`Generated ${configs.length} configurations for ${testMode} test`);
+        console.log(`Generated ${configs.length} configurations for ${testMode} test (including region-specific variants)`);
         return configs;
+    },
+
+    /**
+     * Generate region-specific configuration variants
+     */
+    generateRegionVariant: function(variantType) {
+        const baseConfig = JSON.parse(JSON.stringify(this.currentConfig.regionTypes));
+
+        switch (variantType) {
+            case 'precision':
+                // High precision - strict settings
+                Object.keys(baseConfig).forEach(type => {
+                    baseConfig[type].minConfidence = Math.min(0.7, baseConfig[type].minConfidence + 0.3);
+                    baseConfig[type].boundaryExpansion = Math.max(2, baseConfig[type].boundaryExpansion - 3);
+                    if (baseConfig[type].preferTemplatePosition !== undefined) {
+                        baseConfig[type].preferTemplatePosition = true;
+                    }
+                });
+                break;
+
+            case 'loose':
+                // Loose detection - find more regions
+                Object.keys(baseConfig).forEach(type => {
+                    baseConfig[type].minConfidence = Math.max(0.2, baseConfig[type].minConfidence - 0.2);
+                    baseConfig[type].boundaryExpansion = baseConfig[type].boundaryExpansion + 8;
+                    if (baseConfig[type].allowHeightAdjustment !== undefined) {
+                        baseConfig[type].allowHeightAdjustment = true;
+                    }
+                });
+                break;
+
+            case 'strict':
+                // Very strict - template adherence
+                Object.keys(baseConfig).forEach(type => {
+                    baseConfig[type].minConfidence = Math.min(0.8, baseConfig[type].minConfidence + 0.4);
+                    baseConfig[type].boundaryExpansion = Math.max(1, baseConfig[type].boundaryExpansion - 5);
+                    if (baseConfig[type].preferTemplatePosition !== undefined) {
+                        baseConfig[type].preferTemplatePosition = true;
+                    }
+                    if (baseConfig[type].allowHeightAdjustment !== undefined) {
+                        baseConfig[type].allowHeightAdjustment = false;
+                    }
+                });
+                break;
+
+            case 'expanded':
+                // Large boundary expansions
+                Object.keys(baseConfig).forEach(type => {
+                    baseConfig[type].boundaryExpansion = baseConfig[type].boundaryExpansion + 15;
+                    baseConfig[type].minConfidence = Math.max(0.25, baseConfig[type].minConfidence - 0.15);
+                });
+                break;
+
+            case 'conservative':
+                // Small, careful adjustments
+                Object.keys(baseConfig).forEach(type => {
+                    baseConfig[type].boundaryExpansion = Math.max(2, baseConfig[type].boundaryExpansion - 2);
+                    baseConfig[type].minConfidence = Math.min(0.6, baseConfig[type].minConfidence + 0.1);
+                });
+                break;
+
+            case 'loose_margins':
+                // Specific to margin regions
+                ['left-margin', 'right-margin'].forEach(type => {
+                    if (baseConfig[type]) {
+                        baseConfig[type].minConfidence = 0.2;
+                        baseConfig[type].boundaryExpansion = 15;
+                        baseConfig[type].maxWidthRatio = 0.25; // Allow wider margins
+                    }
+                });
+                break;
+
+            case 'optimal':
+                // Balanced optimal settings
+                Object.keys(baseConfig).forEach(type => {
+                    if (type.includes('margin')) {
+                        baseConfig[type].minConfidence = 0.35;
+                        baseConfig[type].boundaryExpansion = 8;
+                    } else if (type.includes('text')) {
+                        baseConfig[type].minConfidence = 0.45;
+                        baseConfig[type].boundaryExpansion = 12;
+                    } else {
+                        baseConfig[type].minConfidence = 0.4;
+                        baseConfig[type].boundaryExpansion = 10;
+                    }
+                });
+                break;
+
+            case 'adaptive':
+                // Different settings per region type
+                Object.keys(baseConfig).forEach(type => {
+                    if (type === 'header' || type === 'footer') {
+                        baseConfig[type].minConfidence = 0.3;
+                        baseConfig[type].boundaryExpansion = 6;
+                    } else if (type.includes('margin')) {
+                        baseConfig[type].minConfidence = 0.25;
+                        baseConfig[type].boundaryExpansion = 3;
+                        baseConfig[type].preferTemplatePosition = true;
+                    } else if (type.includes('text')) {
+                        baseConfig[type].minConfidence = 0.5;
+                        baseConfig[type].boundaryExpansion = 15;
+                        baseConfig[type].allowHeightAdjustment = true;
+                    }
+                });
+                break;
+
+            case 'tight':
+                // Minimal boundary expansion
+                Object.keys(baseConfig).forEach(type => {
+                    baseConfig[type].boundaryExpansion = Math.max(0, baseConfig[type].boundaryExpansion - 8);
+                    baseConfig[type].minConfidence = Math.min(0.7, baseConfig[type].minConfidence + 0.2);
+                });
+                break;
+
+            case 'default':
+            default:
+                // Keep base configuration
+                break;
+        }
+
+        return baseConfig;
+    },
+
+    /**
+     * Generate margin-focused configuration variant
+     */
+    generateMarginFocusedVariant: function(expansion) {
+        const baseConfig = JSON.parse(JSON.stringify(this.currentConfig.regionTypes));
+
+        // Apply expansion specifically to margin types
+        ['left-margin', 'right-margin'].forEach(type => {
+            if (baseConfig[type]) {
+                baseConfig[type].boundaryExpansion = expansion;
+                // Adjust confidence based on expansion
+                if (expansion === 0) {
+                    baseConfig[type].minConfidence = 0.6; // High confidence for no expansion
+                } else if (expansion > 10) {
+                    baseConfig[type].minConfidence = 0.3; // Lower confidence for large expansion
+                } else {
+                    baseConfig[type].minConfidence = 0.4; // Moderate confidence
+                }
+            }
+        });
+
+        return baseConfig;
     },
 
     /**
@@ -1340,7 +1481,7 @@ window.DetectionConfig = {
             const config = result.config;
 
             html += `
-                <div class="config-result ${index === 0 ? 'best-config' : ''}" onclick="DetectionConfig.applyConfiguration('${config.name}', ${JSON.stringify(config.settings).replace(/"/g, '&quot;')})">
+                <div class="config-result ${index === 0 ? 'best-config' : ''}" onclick="DetectionConfig.applyConfiguration('${config.name}', ${JSON.stringify(config.settings).replace(/"/g, '&quot;')}, ${JSON.stringify(config.regionTypeConfig || {}).replace(/"/g, '&quot;')})">
                     <div class="config-rank">#${index + 1}</div>
                     <div class="config-details">
                         <div class="config-name">${config.name}</div>
@@ -1356,6 +1497,7 @@ window.DetectionConfig = {
                             A: ${config.settings.templateAdherence}, 
                             C: ${config.settings.confidenceThreshold}, 
                             R: ${config.settings.minRegionSize}
+                            ${config.regionTypeConfig ? ' + Region Settings' : ''}
                         </div>
                     </div>
                     <div class="apply-config">Apply</div>
@@ -1384,11 +1526,17 @@ window.DetectionConfig = {
     /**
      * Apply a specific configuration from sweep results
      */
-    applyConfiguration: function(configName, settings) {
+    applyConfiguration: function(configName, settings, regionTypeConfig) {
         console.log(`Applying configuration: ${configName}`, settings);
 
         // Update current config with the selected settings
         Object.assign(this.currentConfig.global, settings);
+
+        // Update region-specific config if provided
+        if (regionTypeConfig) {
+            console.log('Applying region-specific configuration:', regionTypeConfig);
+            this.currentConfig.regionTypes = JSON.parse(JSON.stringify(regionTypeConfig));
+        }
 
         // Refresh the config panel to show new values
         this.refreshConfigPanel();
@@ -1398,7 +1546,7 @@ window.DetectionConfig = {
             this.schedulePreviewUpdate();
         }
 
-        this.showPreviewMessage(`Applied configuration: ${configName}`);
+        this.showPreviewMessage(`Applied configuration: ${configName}${regionTypeConfig ? ' (including region-specific settings)' : ''}`);
 
         if (window.editor && window.editor.updateStatus) {
             window.editor.updateStatus(`Applied configuration: ${configName}`);
